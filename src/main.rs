@@ -1,9 +1,11 @@
 #![allow(non_snake_case)]
 
-use dioxus_router::prelude::*;
+mod exam_component;
 
+use dioxus_router::prelude::*;
 use dioxus::prelude::*;
 use log::LevelFilter;
+use exam_component::Exam;
 
 fn main() {
     // Init debug
@@ -26,6 +28,8 @@ enum Route {
     Home {},
     #[route("/blog/:id")]
     Blog { id: i32 },
+    #[route("/exam/:name")]
+    Exam { name: String },
 }
 
 #[inline_props]
@@ -38,20 +42,47 @@ fn Blog(cx: Scope, id: i32) -> Element {
 
 #[inline_props]
 fn Home(cx: Scope) -> Element {
-    let mut count = use_state(cx, || 0);
-
     cx.render(rsx! {
-        Link {
-            to: Route::Blog {
-                id: *count.get()
-            },
-            "Go to blog"
-        }
         div {
-            h1 { "High-Five counter: {count}" }
-            button { onclick: move |_| count += 1, "Up high!" }
-            button { onclick: move |_| count -= 1, "Down low!" }
-
+            Link{ to: Route::Exam{ name: String::new() }, "Create new exam"}
+            ExistingExams{ name: "agrey".into() }
         }
     })
+}
+
+#[inline_props]
+fn ExistingExams(cx: Scope, name: String) -> Element {
+    let exams = use_state(cx, || None);
+
+    use_effect(cx, name, |name| {
+        to_owned![name, exams];
+        async move {
+            exams.set(server_lookup(name));
+        }
+    });
+
+    render!(
+        match exams.get() {
+            Some(exams) => {
+                rsx!(
+                    ol {
+                        for exam in exams.iter() {
+                            rsx!(
+                                li {
+                                    Link{to:Route::Exam{ name: exam.to_string() }, "{exam}"}
+                                }
+                            )
+                        }
+                    }
+                )
+            }
+            None => {
+                rsx!(p{"You have no saved exams"})
+            }
+        }
+    )
+}
+
+fn server_lookup(_name: String) -> Option<Vec<String>> {
+    Some(vec!["AASLP1".into(), "AAHLP1".into()])
 }
