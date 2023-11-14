@@ -26,28 +26,58 @@ fn app(cx: Scope) -> Element {
 enum Route {
     #[route("/")]
     Home {},
-    #[route("/blog/:id")]
-    Blog { id: i32 },
     #[route("/exam/:name")]
     Exam { name: String },
-}
-
-#[inline_props]
-fn Blog(cx: Scope, id: i32) -> Element {
-    render! {
-        Link { to: Route::Home {}, "Go to counter" }
-        "Blog post {id}"
-    }
 }
 
 #[inline_props]
 fn Home(cx: Scope) -> Element {
     cx.render(rsx! {
         div {
-            Link{ to: Route::Exam{ name: String::new() }, "Create new exam"}
+            NewExam {}
             ExistingExams{ name: "agrey".into() }
         }
     })
+}
+
+fn NewExam(cx: Scope) -> Element {
+    let exam_creation_chosen = use_state(cx, || {false});
+    let new_exam_name = use_state(cx, || {String::new()});
+
+    let css_state = if new_exam_name.is_empty() {
+        "none"
+    } else {
+        "auto"
+    };
+
+    render!(
+        div {
+            button {
+                onclick: move |_| {
+                    exam_creation_chosen.set(true);
+                },
+                "create new exam"
+            }
+            if *exam_creation_chosen.get() {
+                rsx!(
+                    input {
+                        placeholder: "exam name",
+                        oninput: move |ev| {
+                            new_exam_name.set(ev.data.value.clone());
+                        }
+                    },
+                    
+                    button {
+                        style: "pointer-events:{css_state};",
+                        Link {
+                            to: "/exam/{new_exam_name}",
+                            "✔️"
+                        }
+                    }
+                )
+            }
+        }
+    )
 }
 
 #[inline_props]
