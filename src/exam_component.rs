@@ -1,5 +1,3 @@
-use std::fs::File;
-
 use dioxus::prelude::*;  
 #[inline_props]
 pub fn Exam(cx: Scope, name: String) -> Element {
@@ -9,14 +7,14 @@ pub fn Exam(cx: Scope, name: String) -> Element {
         div {
             "exam: {name}"
             ol {
-                questions.read().iter().map(|question: &Question| {
+                questions.read().iter().enumerate().map(|(i,question)| {
                     rsx!( 
                         li {
                             QuestionUI { 
-                                title: question.title.clone(),
-                                media: question.media.clone(),
-                                format: question.format.clone(),
-                                sub_questions: question.sub_questions.clone()
+                                question_data: questions.clone(),
+                                question: question.clone(),
+                                parent_idx: i,
+                                branch_idx: 0,
                             }
                         }
                     )
@@ -30,14 +28,40 @@ pub fn Exam(cx: Scope, name: String) -> Element {
                 },
                 "+ add question"
             }
+        },
+
+        for q in questions.read().iter() {
+            rsx!(
+                "{q:#?}"
+            )
         }
     )
 }
 
-fn QuestionUI(cx: Scope<Question>) -> Element {
+fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
     
-    let title = use_state(cx,|| {(&cx.props.title).to_owned()});
-    let sub_questions = use_ref(cx,|| {(&cx.props.sub_questions).to_owned()});
+    let title = use_state(cx,|| {(&cx.props.question.title).to_owned()});
+    let media = use_state(cx, || {(&cx.props.question.media).to_owned()});
+    let format = use_ref(cx, || {(&cx.props.question.format).to_owned()});
+    let sub_questions = use_ref(cx,|| {(&cx.props.question.sub_questions).to_owned()});
+    let question_data = &cx.props.question_data;
+    let parents_id = &cx.props.parent_idx;
+
+    use_effect(cx, (title,media,format,sub_questions), |(title,media,format,sub_questions)| {
+        to_owned![title,media,format,sub_questions, question_data, parents_id];
+        async move {
+            question_data.with_mut(|questions| {
+                let title = title.get().clone();
+                let media = media.get().clone();
+                let format = format.read().to_owned();
+                let sub_questions = sub_questions.read().to_owned();
+
+                let new_question = Question::new(title, media, format, sub_questions);
+                let l = questions.len();
+                questions[parents_id] = new_question;
+            })
+        }
+    });
 
     render!(
         input { 
@@ -48,14 +72,14 @@ fn QuestionUI(cx: Scope<Question>) -> Element {
             }
         }
         ol {
-            sub_questions.read().iter().map(|question: &Question| {
+            sub_questions.read().iter().enumerate().map(|(i,question)| {
                 rsx!(
                     li {
                         QuestionUI { 
-                            title: question.title.clone(),
-                            media: question.media.clone(),
-                            format: question.format.clone(),
-                            sub_questions: question.sub_questions.clone()
+                            question_data: sub_questions.clone(),
+                            question: question.clone(),
+                            parent_idx: i,
+                            branch_idx: &cx.props.branch_idx.to_owned() + 1
                         }
                     }
                 )
@@ -82,10 +106,24 @@ struct Question {
     sub_questions: Vec<Question>,
 }
 
+#[derive(Props, PartialEq)]
+struct QuestionUIProps{
+    question_data: UseRef<Vec<Question>>,
+    question: Question,
+    parent_idx: usize,
+    branch_idx: usize
+}
+
 impl Default for Question {
     fn default() -> Self {
         use QuestionFormat::*;
         Question { title: "New Question".into(), media: None, format: ShortAnswer, sub_questions: Vec::new() }
+    }
+}
+
+impl Question {
+    fn new(title: String,media: Option<String>,format: QuestionFormat,sub_questions: Vec<Question>,) -> Self {
+        Question { title, media, format, sub_questions }
     }
 }
 
