@@ -1,4 +1,6 @@
 use dioxus::prelude::*;  
+use crate::QuestionFormat;
+
 #[inline_props]
 pub fn Exam(cx: Scope, name: String) -> Element {
     let questions = use_ref(cx, || {Vec::new()});
@@ -14,7 +16,6 @@ pub fn Exam(cx: Scope, name: String) -> Element {
                                 question_data: questions.clone(),
                                 question: question.clone(),
                                 parent_idx: i,
-                                branch_idx: 0,
                             }
                         }
                     )
@@ -27,7 +28,8 @@ pub fn Exam(cx: Scope, name: String) -> Element {
                   })  
                 },
                 "+ add question"
-            }
+            } 
+           
         },
 
         for q in questions.read().iter() {
@@ -57,42 +59,56 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
                 let sub_questions = sub_questions.read().to_owned();
 
                 let new_question = Question::new(title, media, format, sub_questions);
-                let l = questions.len();
                 questions[parents_id] = new_question;
             })
         }
     });
 
     render!(
-        input { 
-            placeholder: "Enter the Question",
-            value: "{title}",
-            oninput: move |ev| {
-                title.set(ev.data.value.clone());
+        div {
+            input { 
+                placeholder: "Enter the Question",
+                value: "{title}",
+                oninput: move |ev| {
+                    title.set(ev.data.value.clone());
+                }
             }
+
+            QuestionFormat { format: format.clone() }
         }
         ol {
             sub_questions.read().iter().enumerate().map(|(i,question)| {
                 rsx!(
                     li {
+                        "{parents_id}"
                         QuestionUI { 
                             question_data: sub_questions.clone(),
                             question: question.clone(),
                             parent_idx: i,
-                            branch_idx: &cx.props.branch_idx.to_owned() + 1
                         }
                     }
                 )
             })
+
+            "{question_data.read():?}"
         }
 
         button {
             onclick: move |_ev| {
                 sub_questions.with_mut(|questions| {
                     questions.push(Question::default());
-                })
+                });
             },
             "+ add sub question"
+        } 
+        
+        button {
+            onclick: move |_ev| {
+                question_data.with_mut(|questions| {
+                    questions.remove(*parents_id);
+                });
+            },
+            "- remove question"
         }
     )
 }
@@ -111,7 +127,6 @@ struct QuestionUIProps{
     question_data: UseRef<Vec<Question>>,
     question: Question,
     parent_idx: usize,
-    branch_idx: usize
 }
 
 impl Default for Question {
@@ -125,12 +140,4 @@ impl Question {
     fn new(title: String,media: Option<String>,format: QuestionFormat,sub_questions: Vec<Question>,) -> Self {
         Question { title, media, format, sub_questions }
     }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-enum QuestionFormat {
-    ShortAnswer,
-    MultipleChoice(Vec<String>),
-    Justify,
-    TrueOrFalse(u8, Vec<String>)  
 }

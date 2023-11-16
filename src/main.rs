@@ -1,11 +1,14 @@
 #![allow(non_snake_case)]
 
 mod exam_component;
+mod exam_formats;
 
 use dioxus_router::prelude::*;
 use dioxus::prelude::*;
 use log::LevelFilter;
 use exam_component::Exam;
+use exam_formats::QuestionFormat;
+
 
 fn main() {
     // Init debug
