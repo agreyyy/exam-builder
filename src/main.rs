@@ -2,12 +2,14 @@
 
 mod exam_component;
 mod exam_formats;
+mod exam_media;
 
 use dioxus_router::prelude::*;
 use dioxus::prelude::*;
 use log::LevelFilter;
 use exam_component::Exam;
 use exam_formats::QuestionFormat;
+use exam_media::QuestionMeda;
 
 
 fn main() {

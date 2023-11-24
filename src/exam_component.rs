@@ -1,6 +1,6 @@
 use dioxus::prelude::*;  
 use crate::QuestionFormat;
-
+use crate::QuestionMeda;
 #[inline_props]
 pub fn Exam(cx: Scope, name: String) -> Element {
     let questions = use_ref(cx, || {Vec::new()});
@@ -16,6 +16,15 @@ pub fn Exam(cx: Scope, name: String) -> Element {
                                 question_data: questions.clone(),
                                 question: question.clone(),
                                 parent_idx: i,
+                            }
+                            button {
+                                onclick: move |_ev| {
+                                    questions.with_mut(|questions| {
+                                        questions.remove(i);
+                                    });
+                                    cx.needs_update();
+                                },
+                                "- remove question {i}"
                             }
                         }
                     )
@@ -74,23 +83,32 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
                 }
             }
 
+            QuestionMeda { media: media.clone() }
+
             QuestionFormat { format: format.clone() }
         }
         ol {
             sub_questions.read().iter().enumerate().map(|(i,question)| {
                 rsx!(
                     li {
-                        "{parents_id}"
                         QuestionUI { 
                             question_data: sub_questions.clone(),
                             question: question.clone(),
                             parent_idx: i,
                         }
+                        button {
+                            onclick: move |_ev| {
+                                sub_questions.with_mut(|questions| {
+                                    questions.remove(i);
+                                });
+                                cx.needs_update();
+                            },
+                            "- remove question {i}"
+                        }
+                    
                     }
                 )
             })
-
-            "{question_data.read():?}"
         }
 
         button {
@@ -102,14 +120,6 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
             "+ add sub question"
         } 
         
-        button {
-            onclick: move |_ev| {
-                question_data.with_mut(|questions| {
-                    questions.remove(*parents_id);
-                });
-            },
-            "- remove question"
-        }
     )
 }
 
