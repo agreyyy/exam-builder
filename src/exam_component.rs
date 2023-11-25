@@ -1,51 +1,54 @@
-use dioxus::prelude::*;  
+use dioxus::prelude::*; 
 use crate::QuestionFormat;
 use crate::QuestionMeda;
 #[inline_props]
 pub fn Exam(cx: Scope, name: String) -> Element {
-    let questions = use_ref(cx, || {Vec::new()});
+    let questions = use_ref(cx, || {Vec::<Question>::new()});
+    let mut counter = use_state(cx, || 0);
 
     render!(
-        div {
-            "exam: {name}"
-            ol {
-                questions.read().iter().enumerate().map(|(i,question)| {
-                    rsx!( 
-                        li {
-                            QuestionUI { 
-                                question_data: questions.clone(),
-                                question: question.clone(),
-                                parent_idx: i,
-                            }
-                            button {
-                                onclick: move |_ev| {
-                                    questions.with_mut(|questions| {
-                                        questions.remove(i);
-                                    });
-                                    cx.needs_update();
-                                },
-                                "- remove question {i}"
-                            }
+        "{name}"
+        ol {
+            questions.read().iter().enumerate().map( move |(i,question)| {
+                rsx!(
+                    li {
+                        key: "{question.id}",
+                        QuestionUI { 
+                            question_data: questions.clone(),
+                            question: question.clone(),
+                            parent_idx: i,
                         }
-                    )
-                })
+                        button {
+                            onclick: move |_ev| {
+                                questions.with_mut(|questions| {
+                                    questions.remove(i);
+                                });
+                            },
+                            "- remove question with id of {question.id.clone()}"
+                        }
+                    }
+                )
             }
-            button {
-                onclick: move |_ev| {
-                  questions.with_mut(|questions| {
-                    questions.push(Question::default());
-                  })  
-                },
-                "+ add question"
-            } 
-           
-        },
+        )}
 
-        for q in questions.read().iter() {
-            rsx!(
-                "{q:#?}"
-            )
+        button {
+            onclick: move |_ev| {
+                counter += 1;
+                questions.with_mut(|questions| {
+                    questions.push(Question::new_default(counter.get().to_owned()));
+                })  
+            },
+            "+ add question" 
         }
+
+
+        "counter = {counter}"
+        // for q in questions.read().iter() {
+        //     rsx!(
+        //         "{next_id}"
+        //         "{q:#?}"
+        //     )
+        // }
     )
 }
 
@@ -56,18 +59,19 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
     let format = use_ref(cx, || {(&cx.props.question.format).to_owned()});
     let sub_questions = use_ref(cx,|| {(&cx.props.question.sub_questions).to_owned()});
     let question_data = &cx.props.question_data;
+    let mut counter = use_state(cx, || 0_usize);
     let parents_id = &cx.props.parent_idx;
+    let id = &cx.props.question.id;
 
     use_effect(cx, (title,media,format,sub_questions), |(title,media,format,sub_questions)| {
-        to_owned![title,media,format,sub_questions, question_data, parents_id];
+        to_owned![title,media,format,sub_questions, question_data, parents_id, id];
         async move {
             question_data.with_mut(|questions| {
                 let title = title.get().clone();
                 let media = media.get().clone();
                 let format = format.read().to_owned();
                 let sub_questions = sub_questions.read().to_owned();
-
-                let new_question = Question::new(title, media, format, sub_questions);
+                let new_question = Question::new(title, media, format, sub_questions, id);
                 questions[parents_id] = new_question;
             })
         }
@@ -87,10 +91,12 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
 
             QuestionFormat { format: format.clone() }
         }
+
         ol {
             sub_questions.read().iter().enumerate().map(|(i,question)| {
                 rsx!(
                     li {
+                        key: "{question.id}",
                         QuestionUI { 
                             question_data: sub_questions.clone(),
                             question: question.clone(),
@@ -101,11 +107,9 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
                                 sub_questions.with_mut(|questions| {
                                     questions.remove(i);
                                 });
-                                cx.needs_update();
                             },
-                            "- remove question {i}"
+                            "- remove question with id of {question.id.clone()}"
                         }
-                    
                     }
                 )
             })
@@ -113,8 +117,9 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
 
         button {
             onclick: move |_ev| {
+                counter += 1;
                 sub_questions.with_mut(|questions| {
-                    questions.push(Question::default());
+                    questions.push(Question::new_default(*counter.get()));
                 });
             },
             "+ add sub question"
@@ -130,6 +135,7 @@ struct Question {
     media: Option<String>,
     format: QuestionFormat,
     sub_questions: Vec<Question>,
+    id: usize
 }
 
 #[derive(Props, PartialEq)]
@@ -139,15 +145,13 @@ struct QuestionUIProps{
     parent_idx: usize,
 }
 
-impl Default for Question {
-    fn default() -> Self {
-        use QuestionFormat::*;
-        Question { title: "New Question".into(), media: None, format: ShortAnswer, sub_questions: Vec::new() }
-    }
-}
-
 impl Question {
-    fn new(title: String,media: Option<String>,format: QuestionFormat,sub_questions: Vec<Question>,) -> Self {
-        Question { title, media, format, sub_questions }
+    fn new(title: String,media: Option<String>,format: QuestionFormat,sub_questions: Vec<Question>, id: usize) -> Self {
+        Question { title, media, format, sub_questions, id}
     }
+
+    fn new_default(id:usize) -> Self {
+        use QuestionFormat::*;
+        Question { title: "New Question".into(), media: None, format: ShortAnswer, sub_questions: Vec::new(), id}
+    } 
 }
