@@ -38,8 +38,9 @@ impl From<String> for QuestionFormat {
 pub fn QuestionFormat(cx: Scope<QuestionFormatWrapper>) -> Element {
     
     let format = &cx.props.format;
-    let choices = use_ref(cx, || {vec!["New Option".to_string()]});
-    let max_answers = use_state(cx, || {1});
+    let choices = use_ref(cx, || {vec![(0,"New Option".to_string())]});
+    let max_answers = use_state(cx, || 1);
+    let mut key_counter = use_state(cx, || 0);
 
     use_effect(cx, choices, |choices| {
         to_owned![format,choices];
@@ -48,10 +49,24 @@ pub fn QuestionFormat(cx: Scope<QuestionFormatWrapper>) -> Element {
             format.with_mut( |format_value| {
                 match format_value {
                     MultipleChoice(_) => {
-                        *format_value = MultipleChoice(choices.read().clone());
+                        let clean_choices = choices.with(|choices| {
+                            let mut new_choices = vec![];
+                            choices.iter().for_each(|c| {
+                                new_choices.push(c.1.clone());
+                            });
+                            new_choices
+                        });
+                        *format_value = MultipleChoice(clean_choices);
                     },
                     TrueOrFalse(i,_) => {
-                        *format_value = TrueOrFalse(*i,choices.read().clone());
+                        let clean_choices = choices.with(|choices| {
+                            let mut new_choices = vec![];
+                            choices.iter().for_each(|c| {
+                                new_choices.push(c.1.clone());
+                            });
+                            new_choices
+                        });
+                        *format_value = TrueOrFalse(*i,clean_choices);
                     }
                     _ => {
                         ()
@@ -83,7 +98,8 @@ pub fn QuestionFormat(cx: Scope<QuestionFormatWrapper>) -> Element {
                 format.with_mut(|cur| {
                     *cur = QuestionFormat::from(ev.data.value.clone());
                 });
-                choices.set(vec!["New Option".to_string()]);
+                key_counter.set(0);
+                choices.set(vec![(key_counter.get().to_owned(),"New Option".to_string())]);
                 max_answers.set(1);
             },
 
@@ -105,6 +121,8 @@ pub fn QuestionFormat(cx: Scope<QuestionFormatWrapper>) -> Element {
             }
         }
 
+        "{key_counter}"
+
         format.with(|format_render| {
             use QuestionFormat::*;
             match format_render.clone() {
@@ -124,23 +142,38 @@ pub fn QuestionFormat(cx: Scope<QuestionFormatWrapper>) -> Element {
                    rsx!(
                     ol {
                         choices.read().iter().enumerate().map(|(i,choice)| {
+                            to_owned![choice];
                             rsx!(
                                 li {
                                     input {
-                                        value: "{choice}",
+                                        value: "{choice.1}",
                                         oninput: move |ev| {
                                             choices.with_mut(|new_choices| {
-                                                new_choices[i] = ev.data.value.clone();
+                                                new_choices[i] = (choice.0, ev.data.value.clone());
                                             })
                                         }
+                                    }
+
+                                    button {
+                                        onclick: move |_| {
+                                            choices.with_mut(|choices| {
+                                                choices.remove(i);
+                                            })
+                                        },
+                                        disabled: choices.with(|choices| {
+                                            1 >= choices.len()
+                                        }),
+                                        "X"
                                     }
                                 }
                             )
                         })
                     }
+                    
                     button {
                         onclick: move |_| {
-                            choices.with_mut(|choices| choices.push("New Option".to_string()));
+                            key_counter += 1;
+                            choices.with_mut(|choices| choices.push((key_counter.get().to_owned(),"New Option".to_string())));
                         },
                         "+ add choice"
                     }
@@ -164,44 +197,68 @@ pub fn QuestionFormat(cx: Scope<QuestionFormatWrapper>) -> Element {
                          rsx!(
                     ol {
                         choices.read().iter().enumerate().map(|(i,choice)| {
+                            to_owned![choice];
                             rsx!(
                                 li {
                                     input {
-                                        value: "{choice}",
+                                        value: "{choice.1}",
                                         oninput: move |ev| {
                                             choices.with_mut(|new_choices| {
-                                                new_choices[i] = ev.data.value.clone();
+                                                new_choices[i] = (choice.0, ev.data.value.clone());
                                             })
                                         }
+                                    }
+
+                                    button {
+                                        onclick: move |_| {
+                                            choices.with_mut(|choices| {
+                                                choices.remove(i);
+                                            })
+                                        },
+                                        disabled: choices.with(|choices| {
+                                            1 >= choices.len()
+                                        }),
+                                        "X"
                                     }
                                 }
                             )
                         })
                     }
-
-                    for _i in 0..*max_answers.get() {
-                        rsx!(
-                            input {
-                                r#type: "checkbox"
-                            }
-                        )
-                    }
-
+                    
                     button {
                         onclick: move |_| {
-                            choices.with_mut(|choices| choices.push("New Option".to_string()));
+                            key_counter += 1;
+                            choices.with_mut(|choices| choices.push((key_counter.get().to_owned(),"New Option".to_string())));
                         },
                         "+ add choice"
+                    }
+                    div {
+                        for _i in 0..*max_answers.get() {
+                            rsx!(
+                                input {
+                                    r#type: "checkbox"
+                                }
+                            )
+                        }
+                    }
+
+
+                    label {
+                        "Type in the number of correct answers"
                     }
                     input {
                         r#type: "number",
                         max: choices.with(|choices| {
                             choices.len() as i64
                         }),
+                        min: 1,
                         oninput: move |ev| {
-                            max_answers.set(ev.data.value.as_str().parse().unwrap_or(1))
+                            let mut number_of_choices = ev.data.value.as_str().parse::<u8>().unwrap_or(1);
+                            if number_of_choices as usize > choices.with(|choices| choices.len()) {
+                                number_of_choices = 1;
+                            }
+                            max_answers.set(number_of_choices);
                         },
-                        "number of correct(true) options"
                     }
                    ) 
                 }

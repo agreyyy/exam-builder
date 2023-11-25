@@ -5,6 +5,6 @@ pub struct MediaProps {
     media: UseState<Option<String>>
 }
 
-pub fn QuestionMeda(cx:Scope<MediaProps>) -> Element {
+pub fn QuestionMedia(cx:Scope<MediaProps>) -> Element {
     render!("IMG")
 }

@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 use log::LevelFilter;
 use exam_component::Exam;
 use exam_formats::QuestionFormat;
-use exam_media::QuestionMeda;
+use exam_media::QuestionMedia;
 
 
 fn main() {

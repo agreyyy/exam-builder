@@ -1,6 +1,6 @@
 use dioxus::prelude::*; 
 use crate::QuestionFormat;
-use crate::QuestionMeda;
+use crate::QuestionMedia;
 #[inline_props]
 pub fn Exam(cx: Scope, name: String) -> Element {
     let questions = use_ref(cx, || {Vec::<Question>::new()});
@@ -24,7 +24,7 @@ pub fn Exam(cx: Scope, name: String) -> Element {
                                     questions.remove(i);
                                 });
                             },
-                            "- remove question with id of {question.id.clone()}"
+                            "- remove question"
                         }
                     }
                 )
@@ -41,8 +41,6 @@ pub fn Exam(cx: Scope, name: String) -> Element {
             "+ add question" 
         }
 
-
-        "counter = {counter}"
         // for q in questions.read().iter() {
         //     rsx!(
         //         "{next_id}"
@@ -87,7 +85,7 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
                 }
             }
 
-            QuestionMeda { media: media.clone() }
+            QuestionMedia { media: media.clone() }
 
             QuestionFormat { format: format.clone() }
         }
@@ -108,7 +106,7 @@ fn QuestionUI(cx: Scope<QuestionUIProps>) -> Element {
                                     questions.remove(i);
                                 });
                             },
-                            "- remove question with id of {question.id.clone()}"
+                            "- remove sub question"
                         }
                     }
                 )
